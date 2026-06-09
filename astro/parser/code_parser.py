@@ -1,6 +1,18 @@
 from tree_sitter import Language, Parser
 import tree_sitter_python as tsPython
 import os
+import hashlib
+
+def calculate_file_hash(file_path):
+    # Generates a unique MD5 fingerprint based on the file's text content.
+    hasher = hashlib.md5()
+    try:
+        with open(file_path, "rb") as f:
+            buf = f.read()
+            hasher.update(buf)
+        return hasher.hexdigest()
+    except Exception:
+        return None
 
 # pre-build language object
 PY_LANGUAGE = Language(tsPython.language())
@@ -39,6 +51,8 @@ def parse_file_structure(file_path):
     definitions = []
     dependencies = []
     errors = []
+
+    file_hash = calculate_file_hash(file_path)
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
@@ -85,4 +99,5 @@ def parse_file_structure(file_path):
         "definitions": definitions,
         "dependencies": dependencies,
         "errors": errors,
+        "hash": file_hash
     }
