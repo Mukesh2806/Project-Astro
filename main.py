@@ -19,7 +19,6 @@ def main():
         print(
             f"Astro ADD triggered, parsing files from root file '{path}' and building graph map"
         )
-
         run_add(path)
 
     elif command == "check":
@@ -27,7 +26,6 @@ def main():
         print(f"Astro check triggered: analyzing files in '{path}' for mutations...")
 
         run_check(path)
-
     else:
         print(f"UNKNOWN command: {command}\nAvailable commands: add, check")
 

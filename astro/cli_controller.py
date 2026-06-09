@@ -14,14 +14,14 @@ def run_add(path):
     for file in files:
         print(f" - {file}")
 
-    codebase_resgitry = {}
+    codebase_registry = {}
     for f in files:
         print(f"parsing structural symbols -> {f}")
         file_metadata = parse_file_structure(f)
 
-        codebase_resgitry[f] = file_metadata
+        codebase_registry[f] = file_metadata
 
-    save_codebase_map(path, codebase_resgitry)
+    save_codebase_map(path, codebase_registry)
     print("Files indexed and ready for graph mapping")
 
 
