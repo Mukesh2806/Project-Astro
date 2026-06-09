@@ -1,3 +1,4 @@
-astro/
+.astro/
+.astroEnv/
+__pycache__/
 tests/
-main.py
