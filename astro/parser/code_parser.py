@@ -3,6 +3,7 @@ import tree_sitter_python as tsPython
 import os
 import hashlib
 
+
 def calculate_file_hash(file_path):
     # Generates a unique MD5 fingerprint based on the file's text content.
     hasher = hashlib.md5()
@@ -13,6 +14,7 @@ def calculate_file_hash(file_path):
         return hasher.hexdigest()
     except Exception:
         return None
+
 
 # pre-build language object
 PY_LANGUAGE = Language(tsPython.language())
@@ -70,7 +72,6 @@ def parse_file_structure(file_path):
         if node.type in ("ERROR", "MISSING"):
             line_num = node.start_point[0] + 1
             col_num = node.start_point[1]
-
             errors.append({"type": node.type, "line": line_num, "column": col_num})
 
         elif node.type in ("function_definition", "class_definition"):
@@ -78,16 +79,28 @@ def parse_file_structure(file_path):
             if name_node:
                 symbol_name = source_code[name_node.start_byte : name_node.end_byte]
                 definitions.append(symbol_name)
+
         elif node.type == "import_statement":
             for child in node.children:
-                if child.type == "dotted_name":
-                    module_name = source_code[child.start_byte : child.end_byte]
-                    dependencies.append(module_name)
+                target_node = child
+                if child.type == "aliased_import":
+                    target_node = child.child_by_field_name("name") or child
+
+                if target_node and target_node.type == "dotted_name":
+                    module_name = source_code[
+                        target_node.start_byte : target_node.end_byte
+                    ].strip()
+                    if module_name not in dependencies:
+                        dependencies.append(module_name)
+
         elif node.type == "import_from_statement":
-            module_node = node.child_by_field_name("module")
-            if module_node:
-                module_name = source_code[module_node.start_byte : module_node.end_byte]
-                dependencies.append(module_name)
+            # Find the dotted_name child node directly without relying on field names
+            for child in node.children:
+                if child.type == "dotted_name":
+                    module_name = source_code[child.start_byte : child.end_byte].strip()
+                    if module_name not in dependencies:
+                        dependencies.append(module_name)
+                    break  # We found the main source module, we can stop
 
         for child in node.children:
             traverse(child)
@@ -99,5 +112,5 @@ def parse_file_structure(file_path):
         "definitions": definitions,
         "dependencies": dependencies,
         "errors": errors,
-        "hash": file_hash
+        "hash": file_hash,
     }
