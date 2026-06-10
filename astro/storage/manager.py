@@ -1,6 +1,24 @@
 import os
 import json
 
+# find true project root
+def find_workspace_root(start_path = "."):
+    # Traces upward from target path until it finds root anchor files
+    curr_dir = os.path.abspath(start_path)
+
+    root_anchors = {"main.py", ".git", ".astro", "requirements.txt", "pyproject.toml"}
+
+    while True:
+        curr_content = set(os.listdir(curr_dir))
+        if curr_content.intersection(root_anchors):
+            return curr_dir
+        
+        parent_dir = os.path.dirname(curr_dir)
+
+        if parent_dir == curr_dir:
+            return os.path.abspath(start_path)
+        
+        curr_dir = parent_dir
 
 # initiation of storage module
 def init_astro_storage(project_path="."):
