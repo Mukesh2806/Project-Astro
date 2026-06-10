@@ -51,7 +51,7 @@ def parse_file_structure(file_path):
     Reads a real python source file and uses tree-sitter to extract real metadata
     """
     definitions = []
-    dependencies = []
+    dependencies = {}  # FIX: Initialized as a dictionary instead of a list
     errors = []
 
     file_hash = calculate_file_hash(file_path)
@@ -61,7 +61,7 @@ def parse_file_structure(file_path):
             source_code = f.read()
     except Exception as e:
         print(f"Error reading file {file_path}: {e}")
-        return {"file": file_path, "definitions": [], "dependencies": [], "errors": []}
+        return {"file": file_path, "definitions": [], "dependencies": {}, "errors": []}
 
     parser = Parser(PY_LANGUAGE)
     tree = parser.parse(bytes(source_code, "utf8"))
@@ -91,16 +91,48 @@ def parse_file_structure(file_path):
                         target_node.start_byte : target_node.end_byte
                     ].strip()
                     if module_name not in dependencies:
-                        dependencies.append(module_name)
+                        dependencies[module_name] = []
 
         elif node.type == "import_from_statement":
-            # Find the dotted_name child node directly without relying on field names
+            module_name = None
             for child in node.children:
                 if child.type == "dotted_name":
                     module_name = source_code[child.start_byte : child.end_byte].strip()
+                    break
+
+            if module_name:
+                full_line_text = source_code[node.start_byte : node.end_byte]
+
+                cleaned_text = full_line_text.replace("\n", " ").replace("\r", " ")
+                cleaned_text = cleaned_text.replace("(", "").replace(")", "")
+
+                if " import " in cleaned_text:
+                    parts = cleaned_text.split(" import ")
+                    raw_symbols = parts[
+                        1
+                    ]  # This is "init_astro_storage, save_codebase_map"
+
+                    imported_symbols = [
+                        s.strip() for s in raw_symbols.split(",") if s.strip()
+                    ]
+
+                    clean_symbols = []
+                    for sym in imported_symbols:
+                        if " as " in sym:
+                            clean_symbols.append(sym.split(" as ")[0].strip())
+                        else:
+                            clean_symbols.append(sym)
+
+                    if module_name in dependencies:
+                        dependencies[module_name] = list(
+                            set(dependencies[module_name] + clean_symbols)
+                        )
+                    else:
+                        dependencies[module_name] = clean_symbols
+
+                else:
                     if module_name not in dependencies:
-                        dependencies.append(module_name)
-                    break  # We found the main source module, we can stop
+                        dependencies[module_name] = []
 
         for child in node.children:
             traverse(child)
