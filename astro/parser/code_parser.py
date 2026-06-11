@@ -51,9 +51,11 @@ def parse_file_structure(file_path):
     Reads a real python source file and uses tree-sitter to extract real metadata
     """
     definitions = []
-    dependencies = {}  # FIX: Initialized as a dictionary instead of a list
+    dependencies = {}
+    calls = {}
     errors = []
 
+    current_definition = [None]
     file_hash = calculate_file_hash(file_path)
 
     try:
@@ -78,7 +80,17 @@ def parse_file_structure(file_path):
             name_node = node.child_by_field_name("name")
             if name_node:
                 symbol_name = source_code[name_node.start_byte : name_node.end_byte]
-                definitions.append(symbol_name)
+                if symbol_name not in definitions:
+                    definitions.append(symbol_name)
+                # ***
+                old_scope = current_definition[0]
+                current_definition[0] = symbol_name
+
+                for child in node.children:
+                    traverse(child)
+
+                current_definition[0] = old_scope
+                return
 
         elif node.type == "import_statement":
             for child in node.children:
@@ -146,3 +158,34 @@ def parse_file_structure(file_path):
         "errors": errors,
         "hash": file_hash,
     }
+
+
+"""
+{
+
+  "definitions": [
+
+    "calculate_file_hash",
+
+    "get_all_py_files",
+
+    "parse_file_structure",
+
+    "traverse"
+
+  ],
+  "calls": {
+
+    "parse_file_structure": [
+
+      "calculate_file_hash",
+
+      "traverse"
+
+    ],
+    "traverse": []
+
+  }
+
+}
+"""
