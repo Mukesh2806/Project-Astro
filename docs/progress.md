@@ -6,22 +6,22 @@
 
 # Future Improvements
 
-- Preserving Class Context
+[x] Preserving Class Context
 
-separating functions and class methods
+- separating functions and class methods
 
-- Adding Call Locations
+[x] Adding Call Locations (Geospatial Call)
 
-add line and column of where functions are called
+- add line and column of where functions are called
 
-- Capturing Arguments 
+[x] Capturing Arguments 
 
-record functions as well as their functions
+- record functions as well as their arguments
 
-- Record Return Statements
+ Record Return Statements
 
-track all expected return value of a functions.
+- track all expected return value of a functions.
 
-- Record Global Variable
+ Record Global Variable
 
-track all global variable and check how global valuable is used
+- track all global variable and check how global valuable is used

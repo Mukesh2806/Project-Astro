@@ -1,5 +1,6 @@
 import sys  # noqa: E402
 from astro.cli_controller import run_add, run_check
+import os
 
 
 def main():
@@ -20,6 +21,9 @@ def main():
             f"Astro ADD triggered, parsing files from root file '{path}' and building graph map"
         )
         run_add(path)
+
+        size = os.path.getsize("./.astro/files_metadata.json")
+        print(f"Metadata file size : {size / 1024:.2f} KB")
 
     elif command == "check":
         path = arguments[1] if len(arguments) > 1 else "."
