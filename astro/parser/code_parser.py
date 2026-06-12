@@ -116,10 +116,21 @@ class CodeParser:
                 called_node = node.children[0]
                 call_name = None
 
-                if called_node.type in ("identifier", "attribute"):
+                if called_node.type == "identifier":
                     call_name = self.source_code[
                         called_node.start_byte : called_node.end_byte
                     ].strip()
+
+                elif called_node.type == "attribute":
+                    attribute_node = called_node.child_by_field_name("attribute")
+                    if attribute_node:
+                        call_name = self.source_code[
+                            attribute_node.start_byte : attribute_node.end_byte
+                        ].strip()
+                    else:
+                        call_name = self.source_code[
+                            called_node.start_byte : called_node.end_byte
+                        ].strip()
 
                 if call_name:
                     if self._current_definition not in self.calls:
@@ -191,9 +202,6 @@ class CodeParser:
 
         self._traverse(tree.root_node)
         return self.get_manifest()
-
-
-
 
 
 """
