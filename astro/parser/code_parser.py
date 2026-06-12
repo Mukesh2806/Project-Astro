@@ -3,19 +3,6 @@ import tree_sitter_python as tsPython
 import os
 import hashlib
 
-
-def calculate_file_hash(file_path):
-    # Generates a unique MD5 fingerprint based on the file's text content.
-    hasher = hashlib.md5()
-    try:
-        with open(file_path, "rb") as f:
-            buf = f.read()
-            hasher.update(buf)
-        return hasher.hexdigest()
-    except Exception:
-        return None
-
-
 # pre-build language object
 PY_LANGUAGE = Language(tsPython.language())
 
@@ -45,147 +32,205 @@ def get_all_py_files(root_path):
     return py_files
 
 
-# tree-sitter-parser logic
-def parse_file_structure(file_path):
-    """
-    Reads a real python source file and uses tree-sitter to extract real metadata
-    """
-    definitions = []
-    dependencies = {}
-    calls = {}
-    errors = []
+class CodeParser:
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.definitions = []
+        self.dependencies = {}
+        self.calls = {}
+        self.errors = []
+        self.file_hash = self._calculate_file_hash()
+        self.source_code = ""
 
-    current_definition = [None]
-    file_hash = calculate_file_hash(file_path)
+        self._current_definition = None
 
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            source_code = f.read()
-    except Exception as e:
-        print(f"Error reading file {file_path}: {e}")
-        return {"file": file_path, "definitions": [], "dependencies": {}, "errors": []}
+    def _calculate_file_hash(self) -> str:
+        # Generates a unique MD5 fingerprint based on the file's text content.
+        hasher = hashlib.md5()
+        try:
+            with open(self.file_path, "rb") as f:
+                buf = f.read()
+                hasher.update(buf)
+            return hasher.hexdigest()
+        except Exception:
+            return ""
 
-    parser = Parser(PY_LANGUAGE)
-    tree = parser.parse(bytes(source_code, "utf8"))
-    root_node = tree.root_node
+    def _read_file(self) -> bool:
+        # to read file source text safely into memory
+        try:
+            with open(self.file_path, "r", encoding="utf-8") as f:
+                self.source_code = f.read()
+            return True
+        except Exception as e:
+            self.errors.append({"type": "READ_ERROR", "message": str(e)})
+            return False
 
-    # dfs tree traversal
-    def traverse(node):
+    def _clean_import_symbols(self, raw_symbols_str: str) -> list[str]:
+        # cleans from import statements string as strip alias like symbols to
+        cleaned_sym = (
+            raw_symbols_str.replace("\n", " ")
+            .replace("\r", " ")
+            .replace("(", "")
+            .replace(")", "")
+        )
+
+        parts = [s.strip() for s in cleaned_sym.split(",") if s.strip()]
+
+        final_symbols = [
+            part.split(" as ")[0].strip() if " as " in part else part for part in parts
+        ]
+
+        return final_symbols
+
+    def _traverse(self, node):
+        # internal recursive AST walker
+
+        # Layer 1: catch syntax errors
         if node.type in ("ERROR", "MISSING"):
             line_num = node.start_point[0] + 1
             col_num = node.start_point[1]
-            errors.append({"type": node.type, "line": line_num, "column": col_num})
+            self.errors.append({"type": node.type, "line": line_num, "column": col_num})
 
+        # Layer 2: symbol definitions
         elif node.type in ("function_definition", "class_definition"):
             name_node = node.child_by_field_name("name")
             if name_node:
-                symbol_name = source_code[name_node.start_byte : name_node.end_byte]
-                if symbol_name not in definitions:
-                    definitions.append(symbol_name)
-                # ***
-                old_scope = current_definition[0]
-                current_definition[0] = symbol_name
+                symbol_name = self.source_code[
+                    name_node.start_byte : name_node.end_byte
+                ].strip()
+                if symbol_name not in self.definitions:
+                    self.definitions.append(symbol_name)
+
+                old_scope = self._current_definition
+                self._current_definition = symbol_name
 
                 for child in node.children:
-                    traverse(child)
+                    self._traverse(child)
 
-                current_definition[0] = old_scope
+                self._current_definition = old_scope
                 return
 
+        # layer 3: local call-graph linker
+        elif node.type == "call":
+            if self._current_definition is not None:
+                called_node = node.children[0]
+                call_name = None
+
+                if called_node.type in ("identifier", "attribute"):
+                    call_name = self.source_code[
+                        called_node.start_byte : called_node.end_byte
+                    ].strip()
+
+                if call_name:
+                    if self._current_definition not in self.calls:
+                        self.calls[self._current_definition] = []
+                    if call_name not in self.calls[self._current_definition]:
+                        self.calls[self._current_definition].append(call_name)
+
+        # layer 4 : standard imports
         elif node.type == "import_statement":
             for child in node.children:
                 target_node = child
                 if child.type == "aliased_import":
-                    target_node = child.child_by_field_name("name") or child
+                    target_node = child.child_by_field_name("name")
 
                 if target_node and target_node.type == "dotted_name":
-                    module_name = source_code[
+                    module_name = self.source_code[
                         target_node.start_byte : target_node.end_byte
-                    ].strip()
-                    if module_name not in dependencies:
-                        dependencies[module_name] = []
-
-        elif node.type == "import_from_statement":
-            module_name = None
-            for child in node.children:
-                if child.type == "dotted_name":
-                    module_name = source_code[child.start_byte : child.end_byte].strip()
-                    break
-
-            if module_name:
-                full_line_text = source_code[node.start_byte : node.end_byte]
-
-                cleaned_text = full_line_text.replace("\n", " ").replace("\r", " ")
-                cleaned_text = cleaned_text.replace("(", "").replace(")", "")
-
-                if " import " in cleaned_text:
-                    parts = cleaned_text.split(" import ")
-                    raw_symbols = parts[
-                        1
-                    ]  # This is "init_astro_storage, save_codebase_map"
-
-                    imported_symbols = [
-                        s.strip() for s in raw_symbols.split(",") if s.strip()
                     ]
+                    if module_name not in self.dependencies:
+                        self.dependencies[module_name] = []
 
-                    clean_symbols = []
-                    for sym in imported_symbols:
-                        if " as " in sym:
-                            clean_symbols.append(sym.split(" as ")[0].strip())
-                        else:
-                            clean_symbols.append(sym)
+        # layer 5 : From-Imports
+        elif node.type == "import_from_statement":
+            module_node = node.child_by_field_name("module")
+            if module_node:
+                module_name = self.source_code[
+                    module_node.start_byte : module_node.end_byte
+                ]
+                full_line_text = self.source_code[node.start_byte : node.end_byte]
 
-                    if module_name in dependencies:
-                        dependencies[module_name] = list(
-                            set(dependencies[module_name] + clean_symbols)
+                if " import " in full_line_text:
+                    raw_symbols = full_line_text.split(" import ")[1]
+                    clean_symbols = self._clean_import_symbols(raw_symbols)
+
+                    if module_name in self.dependencies:
+                        self.dependencies[module_name] = list(
+                            set(self.dependencies[module_name] + clean_symbols)
                         )
                     else:
-                        dependencies[module_name] = clean_symbols
-
+                        self.dependencies[module_name] = clean_symbols
                 else:
-                    if module_name not in dependencies:
-                        dependencies[module_name] = []
+                    if module_name not in self.dependencies:
+                        self.dependencies[module_name] = []
 
+        # default fallthrough sweep
         for child in node.children:
-            traverse(child)
+            self._traverse(child)
 
-    traverse(root_node)
+    def get_manifest(self) -> dict:
+        # format collected metadata into standard structural database schema
 
-    return {
-        "file": file_path,
-        "definitions": definitions,
-        "dependencies": dependencies,
-        "errors": errors,
-        "hash": file_hash,
-    }
+        return {
+            "file": self.file_path,
+            "hash": self.file_hash,
+            "definitions": self.definitions,
+            "calls": self.calls,
+            "dependencies": self.dependencies,
+            "errors": self.errors,
+        }
+
+    def parse(self) -> dict:
+        # starts parse engine and returns complied file with dict
+
+        if not self._read_file():
+            return self.get_manifest()
+
+        parser = Parser(PY_LANGUAGE)
+        tree = parser.parse(bytes(self.source_code, "utf8"))
+
+        self._traverse(tree.root_node)
+        return self.get_manifest()
+
+
+
 
 
 """
 {
-
+  "file": "astro/storage/manager.py",
+  "hash": "b10a8db164e0754105b7a99be72e3fe5",
+  
   "definitions": [
-
-    "calculate_file_hash",
-
-    "get_all_py_files",
-
-    "parse_file_structure",
-
-    "traverse"
-
+    "init_astro_storage",
+    "save_codebase_map"
   ],
+
   "calls": {
-
-    "parse_file_structure": [
-
-      "calculate_file_hash",
-
-      "traverse"
-
+    "init_astro_storage": [
+      "os.path.exists",
+      "os.makedirs"
     ],
-    "traverse": []
+    "save_codebase_map": [
+      "calculate_file_hash",
+      "print"
+    ]
+  },
 
-  }
+  "dependencies": {
+    "os": [],
+    "hashlib": [],
+    "astro.parser.code_parser": [
+      "calculate_file_hash"
+    ]
+  },
 
+  "errors": [
+    {
+      "type": "MISSING",
+      "line": 13,
+      "column": 20
+    }
+  ]
 }
 """

@@ -1,18 +1,14 @@
+import os
+import json
 from astro.storage.manager import (
     init_astro_storage,
     save_codebase_map,
     find_workspace_root,
 )
-from astro.parser.code_parser import (
-    get_all_py_files,
-    parse_file_structure,
-    calculate_file_hash,
-)
-import os
-import json
+from astro.parser.code_parser import get_all_py_files, CodeParser
 
 
-# text formatting
+# Text formatting
 class Color:
     # Text Style Codes
     RESET = "\033[0m"
@@ -32,10 +28,10 @@ def run_add(project_path="."):
     print(f"{Color.GREEN}{Color.BOLD}Astro ADD: scanning '{project_path}'{Color.RESET}")
     workspace_root = find_workspace_root(project_path)
 
-    # create astro repository
+    # Create astro repository storage files
     init_astro_storage(workspace_root)
 
-    # old record
+    # Old record check
     cache_path = os.path.join(workspace_root, ".astro", "files_metadata.json")
     existing_records = {}
 
@@ -46,44 +42,50 @@ def run_add(project_path="."):
         except Exception:
             existing_records = {}
 
-    updated_record = dict(existing_records)
+    # Initialize a clean dict to only keep track of active live files
+    updated_record = {}
     parsed_counter = 0
 
     files = get_all_py_files(project_path)
-    print(f"{Color.BOLD}{Color.YELLOW}found {len(files)} files to index.{Color.RESET}")
+    print(f"{Color.BOLD}{Color.YELLOW}Found {len(files)} files to index.{Color.RESET}")
 
     for file in files:
         print(f" - {file}")
 
     for file_path in files:
         abs_live_path = os.path.abspath(file_path)
-        live_hash = calculate_file_hash(abs_live_path)
+
+        # Instantiate the new CodeParser class for hashing and parsing
+        parser_instance = CodeParser(abs_live_path)
+        live_hash = parser_instance.file_hash
 
         if not live_hash:
             continue
 
-        # FIX: Check and write consistently using absolute keys
+        # Check cache validation hit
         if (
             abs_live_path in existing_records
             and existing_records[abs_live_path].get("hash") == live_hash
         ):
-            # Cache hit -> maintain the pristine absolute key entry
             updated_record[abs_live_path] = existing_records[abs_live_path]
         else:
             print(
                 f"{Color.BOLD}{Color.YELLOW}File modified or new -> parsing: {file_path}{Color.RESET}"
             )
-            metadata = parse_file_structure(abs_live_path)
+            # Execute class parser execution cycle
+            metadata = parser_instance.parse()
 
-            # Ensure internal metadata matches the absolute tracking standard
-            metadata["file"] = abs_live_path
             updated_record[abs_live_path] = metadata
             parsed_counter += 1
 
+    # Save finalized global snapshot back to disk
     save_codebase_map(workspace_root, updated_record)
 
-    # Track modified and deleted files accurately
-    deleted_counter = max(0, len(existing_records) - len(updated_record))
+    # Track deleted files by comparing structural key differences
+    deleted_counter = 0
+    for old_path in existing_records:
+        if old_path not in updated_record:
+            deleted_counter += 1
 
     if parsed_counter == 0 and deleted_counter == 0:
         print(
@@ -91,9 +93,13 @@ def run_add(project_path="."):
         )
     else:
         print(
-            f"{Color.BOLD}{Color.GREEN}Sync complete. {parsed_counter} files modified, {deleted_counter} files deleted.{Color.RESET}"
+            f"{Color.BOLD}{Color.GREEN}Sync complete. {parsed_counter} files modified/added, {deleted_counter} files tracking deleted.{Color.RESET}"
         )
 
 
-def run_check(path):
-    print(f"Astro CHECK : Analyzing {path} for mutations...")
+def run_check(project_path="."):
+    print(
+        f"{Color.CYAN}{Color.BOLD}Astro CHECK: Analyzing {project_path} for mutations...{Color.RESET}"
+    )
+    # Next play: Wire this up to call Layer 2 (GraphEngine + IntegrityAnalyzer)
+    # and Layer 3 (ConfigAnalyzer) from here using files_metadata.json
