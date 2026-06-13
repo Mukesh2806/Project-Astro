@@ -355,7 +355,7 @@ class CodeParser:
                 ].strip()
 
                 self.globals.append(
-                    {"name": name, "value": value, "line": line, "column": col}
+                    {"name": name, "expression": value, "line": line, "column": col}
                 )
 
         # default fallthrough sweep
@@ -371,7 +371,6 @@ class CodeParser:
             "globals": self.globals,
             "definitions": self.definitions,
             "calls": self.calls,
-            "dependencies": self.dependencies,
             "errors": self.errors,
         }
 
@@ -390,66 +389,59 @@ class CodeParser:
 
 """
 {
-  "C:\\Users\\ROHIT\\OneDrive\\Desktop\\Projects\\Project-Astro\\astro\\parser\\code_parser.py": {
-    "file": "C:\\Users\\ROHIT\\OneDrive\\Desktop\\Projects\\Project-Astro\\astro\\parser\\code_parser.py",
-    "hash": "37228b8783de327f687a7ec2c974dc76",
+  "C:\\Users\\ROHIT\\Projects\\Project-Astro\\astro\\services\\auth_service.py": {
+    "file": "C:\\Users\\ROHIT\\Projects\\Project-Astro\\astro\\services\\auth_service.py",
+    "hash": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+    
+    "globals": [
+      {
+        "name": "AUTH_VERSION",
+        "value": "2.0",
+        "line": 5,
+        "column": 0
+      }
+    ],
+    
+    "imports": [
+      {
+        "module": "database.connector",
+        "imported_as": "db_engine",
+        "line": 2,
+        "column": 0
+      }
+    ],
+
     "definitions": {
-      "class_definition": {
-        "CodeParser": {
-          "parameters": [],
-          "returns": []
-        }
-      },
       "function_definition": {
-        "_calculate_file_hash": {
+        "verify_token": {
           "parameters": [
-            {
-              "name": "self",
-              "type": "Any"
-            }
+            { "name": "token", "type": "str" },
+            { "name": "role", "type": "str" }
           ],
           "returns": [
-            {
-              "expression": "hasher.hexdigest()",
-              "node_type": "call",
-              "line": 54,
-              "column": 12
-            },
-            {
-              "expression": "\"\"",
-              "node_type": "string",
-              "line": 56,
-              "column": 12
-            }
+            { "expression": "True", "node_type": "boolean", "line": 42, "column": 8 },
+            { "expression": "False", "node_type": "boolean", "line": 45, "column": 8 }
           ]
         }
       }
     },
+
     "calls": {
-      "_calculate_file_hash": [
+      "verify_token": [
         {
-          "name": "md5",
-          "arguments": [],
-          "line": 48,
-          "column": 17
-        },
-        {
-          "name": "open",
+          "name": "db_engine.query",
           "arguments": [
-            {
-              "value": "self.file_path",
-              "node_type": "attribute"
-            },
-            {
-              "value": "\"rb\"",
-              "node_type": "string"
-            }
+            { "value": "token", "node_type": "identifier" }
           ],
-          "line": 50,
-          "column": 13
+          "line": 38,
+          "column": 12
         }
       ]
-    }
+    },
+
+    "dependencies": [
+      "database.connector"
+    ]
   }
 }
 """
