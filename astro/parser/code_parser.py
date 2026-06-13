@@ -91,7 +91,7 @@ class CodeParser:
             col_num = node.start_point[1]
             self.errors.append({"type": node.type, "line": line_num, "column": col_num})
 
-        # Layer 2: symbol definitions
+        # Layer 2a: symbol definitions
         elif node.type in ("function_definition", "class_definition"):
             name_node = node.child_by_field_name("name")
             if name_node:
@@ -103,7 +103,7 @@ class CodeParser:
 
                 # 1. Ensure the structure entry exists in our primary storage
                 if symbol_name not in target_registry:
-                    target_registry[symbol_name] = {"parameters": []}
+                    target_registry[symbol_name] = {"parameters": [], "returns": []}
 
                 # 2. Extract and populate parameters if it's a function and array is empty
                 if (
@@ -210,6 +210,34 @@ class CodeParser:
 
                 self._current_definition = old_scope
                 return
+            
+        # layer 2b: capture internal return statement
+        elif node.type == "return_statement":
+            if self._current_definition is not None:
+                func_registry = self.definitions.get("function_definition")
+
+                if self._current_definition in func_registry:
+                    ret_line = node.start_point[0] + 1
+                    ret_col = node.start_point[1]
+
+                    ret_exp = "None"
+                    ret_node_type = "none"
+
+                    if len(node.children) > 1:
+                        val_node = node.children[1]
+                        ret_exp = self.source_code[
+                            val_node.start_byte : val_node.end_byte
+                        ].strip()
+                        ret_node_type = val_node.type
+
+                    func_registry[self._current_definition]["returns"].append(
+                        {
+                            "expression": ret_exp,
+                            "node_type": ret_node_type,
+                            "line": ret_line,
+                            "column": ret_col,
+                        }
+                    )
 
         # layer 3: local call-graph linker
         elif node.type == "call":

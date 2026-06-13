@@ -18,7 +18,7 @@
 
 - record functions as well as their arguments
 
-[] Record Return Statements
+[x] Record Return Statements
 
 - track all expected return expression, return type, return loc of a functions.
 
