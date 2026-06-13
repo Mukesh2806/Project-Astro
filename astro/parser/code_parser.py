@@ -35,6 +35,7 @@ def get_all_py_files(root_path):
 class CodeParser:
     def __init__(self, file_path):
         self.file_path = file_path
+        self.globals = []
         self.definitions = {"class_definition": {}, "function_definition": {}}
         self.dependencies = {}
         self.calls = {}
@@ -210,7 +211,7 @@ class CodeParser:
 
                 self._current_definition = old_scope
                 return
-            
+
         # layer 2b: capture internal return statement
         elif node.type == "return_statement":
             if self._current_definition is not None:
@@ -333,6 +334,30 @@ class CodeParser:
                     if module_name not in self.dependencies:
                         self.dependencies[module_name] = []
 
+        elif node.type == "assignment":
+            if self._current_definition is None:
+                left_node = node.child_by_field_name("left")
+                right_node = node.child_by_field_name("right")
+
+                if not left_node and len(node.children) >= 1:
+                    left_node = node.children[0]
+                if not right_node and len(node.children) >= 3:
+                    right_node = node.children[2]
+
+                line = left_node.start_point[0] + 1
+                col = left_node.start_point[1]
+
+                name = self.source_code[
+                    left_node.start_byte : left_node.end_byte
+                ].strip()
+                value = self.source_code[
+                    right_node.start_byte : right_node.end_byte
+                ].strip()
+
+                self.globals.append(
+                    {"name": name, "value": value, "line": line, "column": col}
+                )
+
         # default fallthrough sweep
         for child in node.children:
             self._traverse(child)
@@ -343,6 +368,7 @@ class CodeParser:
         return {
             "file": self.file_path,
             "hash": self.file_hash,
+            "globals": self.globals,
             "definitions": self.definitions,
             "calls": self.calls,
             "dependencies": self.dependencies,
@@ -363,61 +389,67 @@ class CodeParser:
 
 
 """
-"definitions": {
-  "function_definition": {
-    "run_add": {
-      "parameters": [
-        { "name": "self", "type": "Any" },
-        { "name": "workspace_path", "type": "str" }
+{
+  "C:\\Users\\ROHIT\\OneDrive\\Desktop\\Projects\\Project-Astro\\astro\\parser\\code_parser.py": {
+    "file": "C:\\Users\\ROHIT\\OneDrive\\Desktop\\Projects\\Project-Astro\\astro\\parser\\code_parser.py",
+    "hash": "37228b8783de327f687a7ec2c974dc76",
+    "definitions": {
+      "class_definition": {
+        "CodeParser": {
+          "parameters": [],
+          "returns": []
+        }
+      },
+      "function_definition": {
+        "_calculate_file_hash": {
+          "parameters": [
+            {
+              "name": "self",
+              "type": "Any"
+            }
+          ],
+          "returns": [
+            {
+              "expression": "hasher.hexdigest()",
+              "node_type": "call",
+              "line": 54,
+              "column": 12
+            },
+            {
+              "expression": "\"\"",
+              "node_type": "string",
+              "line": 56,
+              "column": 12
+            }
+          ]
+        }
+      }
+    },
+    "calls": {
+      "_calculate_file_hash": [
+        {
+          "name": "md5",
+          "arguments": [],
+          "line": 48,
+          "column": 17
+        },
+        {
+          "name": "open",
+          "arguments": [
+            {
+              "value": "self.file_path",
+              "node_type": "attribute"
+            },
+            {
+              "value": "\"rb\"",
+              "node_type": "string"
+            }
+          ],
+          "line": 50,
+          "column": 13
+        }
       ]
     }
   }
-}
-
-"calls": {
-  "run_add": [
-    { "name": "print", "line": 12, "column": 8 },
-    { "name": "find_workspace_root", "line": 14, "column": 21 },
-    { "name": "print", "line": 25, "column": 8 }
-  ]
-}
-
-
-
-{
-  "file": "astro/storage/manager.py",
-  "hash": "b10a8db164e0754105b7a99be72e3fe5",
-  
-  "definitions": [
-    "init_astro_storage",
-    "save_codebase_map"
-  ],
-
-  "calls": {
-    "init_astro_storage": [
-      "os.path.exists",
-      "os.makedirs"
-    ],
-    "save_codebase_map": [
-      "calculate_file_hash",
-      "print"
-    ]
-  },
-
-  "dependencies": {
-    "os": [],
-    "hashlib": [],
-    "astro.parser.code_parser": [
-      "calculate_file_hash"
-    ]
-  },
-
-  "errors": [
-    {
-      "type": "MISSING",
-      "line": 13,
-      "column": 20
-    }
-  ]
 }
 """

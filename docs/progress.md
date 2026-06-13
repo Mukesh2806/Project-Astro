@@ -22,6 +22,6 @@
 
 - track all expected return expression, return type, return loc of a functions.
 
-[] Record Global Variable
+[x] Record Global Variable
 
 - track all global variable and check how global valuable is used
