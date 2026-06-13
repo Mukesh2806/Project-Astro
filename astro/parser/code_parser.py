@@ -154,7 +154,7 @@ class CodeParser:
                                                 pass
 
                                     target_registry[symbol_name]["parameters"].append(
-                                        {"argument": p_name, "type": p_type}
+                                        {"name": p_name, "type": p_type}
                                     )
 
                                 # Case B: The parameter has a default value assignment (e.g., project_path=".")
@@ -188,7 +188,7 @@ class CodeParser:
                                             ].strip()
 
                                     target_registry[symbol_name]["parameters"].append(
-                                        {"argument": p_name, "type": p_type}
+                                        {"name": p_name, "type": p_type}
                                     )
 
                                 # Case C: The parameter is a raw identifier with no hint or assignment (e.g., self)
@@ -198,7 +198,7 @@ class CodeParser:
                                     ].strip()
 
                                     target_registry[symbol_name]["parameters"].append(
-                                        {"argument": p_name, "type": "Any"}
+                                        {"name": p_name, "type": "Any"}
                                     )
 
                 # Maintain your scope state machine tracker for recursive depth mapping
@@ -237,7 +237,31 @@ class CodeParser:
                     line_num = node.start_point[0] + 1
                     col_num = node.start_point[1]
 
-                    call_meta = {"name": call_name, "line": line_num, "column": col_num}
+                    extracted_arguments = []
+
+                    arg_list_node = None
+                    for child in node.children:
+                        if child.type == "argument_list":
+                            arg_list_node = child
+                            break
+
+                    if arg_list_node:
+                        for arg_child in arg_list_node.children:
+                            if arg_child.type not in ("(", ")", ","):
+                                arg_value = self.source_code[
+                                    arg_child.start_byte : arg_child.end_byte
+                                ].strip()
+
+                                extracted_arguments.append(
+                                    {"value": arg_value, "node_type": arg_child.type}
+                                )
+
+                    call_meta = {
+                        "name": call_name,
+                        "arguments": extracted_arguments,
+                        "line": line_num,
+                        "column": col_num,
+                    }
 
                     if self._current_definition not in self.calls:
                         self.calls[self._current_definition] = []

@@ -18,10 +18,10 @@
 
 - record functions as well as their arguments
 
- Record Return Statements
+[] Record Return Statements
 
-- track all expected return value of a functions.
+- track all expected return expression, return type, return loc of a functions.
 
- Record Global Variable
+[] Record Global Variable
 
 - track all global variable and check how global valuable is used
