@@ -313,26 +313,24 @@ class CodeParser:
 
         # layer 5 : From-Imports
         elif node.type == "import_from_statement":
-            module_node = node.child_by_field_name("module")
+            module_node = node.child_by_field_name("module_name")
             if module_node:
                 module_name = self.source_code[
                     module_node.start_byte : module_node.end_byte
-                ]
-                full_line_text = self.source_code[node.start_byte : node.end_byte]
+                ].strip()
 
-                if " import " in full_line_text:
-                    raw_symbols = full_line_text.split(" import ")[1]
-                    clean_symbols = self._clean_import_symbols(raw_symbols)
+                clean_symbols = []
+            for child in node.children:
+                if node.field_name_for_child(node.children.index(child)) == "name":
+                    symbol_name = self.source_code[child.start_byte : child.end_byte]
+                    clean_symbols.append(symbol_name)
 
-                    if module_name in self.dependencies:
-                        self.dependencies[module_name] = list(
-                            set(self.dependencies[module_name] + clean_symbols)
-                        )
-                    else:
-                        self.dependencies[module_name] = clean_symbols
-                else:
-                    if module_name not in self.dependencies:
-                        self.dependencies[module_name] = []
+            if module_name in self.dependencies:
+                self.dependencies[module_name] = list(
+                    set(self.dependencies[module_name] + clean_symbols)
+                )
+            else:
+                self.dependencies[module_name] = clean_symbols
 
         elif node.type == "assignment":
             if self._current_definition is None:
@@ -369,6 +367,7 @@ class CodeParser:
             "file": self.file_path,
             "hash": self.file_hash,
             "globals": self.globals,
+            "dependencies": self.dependencies,
             "definitions": self.definitions,
             "calls": self.calls,
             "errors": self.errors,
@@ -389,38 +388,46 @@ class CodeParser:
 
 """
 {
-  "C:\\Users\\ROHIT\\Projects\\Project-Astro\\astro\\services\\auth_service.py": {
-    "file": "C:\\Users\\ROHIT\\Projects\\Project-Astro\\astro\\services\\auth_service.py",
+  "C:\\Users\\ROHIT\\OneDrive\\Desktop\\Projects\\Project-Astro\\astro\\services\\auth_service.py": {
+    "file": "C:\\Users\\ROHIT\\OneDrive\\Desktop\\Projects\\Project-Astro\\astro\\services\\auth_service.py",
     "hash": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
     
     "globals": [
       {
         "name": "AUTH_VERSION",
-        "value": "2.0",
+        "expression": "\"2.0\"",
         "line": 5,
         "column": 0
       }
     ],
     
-    "imports": [
-      {
-        "module": "database.connector",
-        "imported_as": "db_engine",
-        "line": 2,
-        "column": 0
-      }
-    ],
+    "dependencies": {
+      "json": [],
+      "os.path": [
+        "exists",
+        "join"
+      ],
+      "astro.storage.manager": [
+        "find_workspace_root"
+      ]
+    },
 
     "definitions": {
+      "class_definition": {
+        "TokenVerifier": {
+          "parameters": [],
+          "returns": []
+        }
+      },
       "function_definition": {
         "verify_token": {
           "parameters": [
-            { "name": "token", "type": "str" },
-            { "name": "role", "type": "str" }
+            { "name": "token", "type": "Any" },
+            { "name": "role", "type": "Any" }
           ],
           "returns": [
-            { "expression": "True", "node_type": "boolean", "line": 42, "column": 8 },
-            { "expression": "False", "node_type": "boolean", "line": 45, "column": 8 }
+            { "expression": "True", "node_type": "true", "line": 42, "column": 8 },
+            { "expression": "False", "node_type": "false", "line": 45, "column": 8 }
           ]
         }
       }
@@ -429,19 +436,25 @@ class CodeParser:
     "calls": {
       "verify_token": [
         {
-          "name": "db_engine.query",
+          "name": "find_workspace_root",
           "arguments": [
             { "value": "token", "node_type": "identifier" }
           ],
           "line": 38,
           "column": 12
+        },
+        {
+          "name": "print",
+          "arguments": [
+            { "value": "\"Validating token...\"", "node_type": "string" }
+          ],
+          "line": 39,
+          "column": 12
         }
       ]
     },
-
-    "dependencies": [
-      "database.connector"
-    ]
+    
+    "errors": []
   }
 }
 """

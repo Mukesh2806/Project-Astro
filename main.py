@@ -22,8 +22,11 @@ def main():
         )
         run_add(path)
 
-        size = os.path.getsize("./.astro/files_metadata.json")
-        print(f"Metadata file size : {size / 1024:.2f} KB")
+        size_metadata = os.path.getsize("./.astro/files_metadata.json")
+        size_file_graph = os.path.getsize("./.astro/file_graph.astro")
+
+        print(f"Metadata file size : {size_metadata / 1024:.2f} KB")
+        print(f"File Dependency file size : {size_file_graph / 1024:.2f} KB")
 
     elif command == "check":
         path = arguments[1] if len(arguments) > 1 else "."

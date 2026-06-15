@@ -6,6 +6,7 @@ from astro.storage.manager import (
     find_workspace_root,
 )
 from astro.parser.code_parser import get_all_py_files, CodeParser
+from astro.engine.file_dependency_graph import FileDependencyEngine
 
 
 # Text formatting
@@ -95,6 +96,10 @@ def run_add(project_path="."):
         print(
             f"{Color.BOLD}{Color.GREEN}Sync complete. {parsed_counter} files modified/added, {deleted_counter} files tracking deleted.{Color.RESET}"
         )
+
+    # build graph
+    fileEngine = FileDependencyEngine(workspace_root)
+    fileEngine.run()
 
 
 def run_check(project_path="."):

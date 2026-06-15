@@ -27,10 +27,10 @@ def init_astro_storage(project_path="."):
 
     # This is our raw source-of-truth metadata file cache
     file_json = "files_metadata.json"
-    file_astro = "graph.astro"
+    graphs = ["file_graph.astro", "symbol_graph.astro", "unified_graph.astro"]
+
 
     full_path_json = os.path.join(folder, file_json)
-    full_path_astro = os.path.join(folder, file_astro)
 
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -41,10 +41,13 @@ def init_astro_storage(project_path="."):
             f.write("{}")  # empty json
         print(f"initialized custom tracking file : {full_path_json}")
 
-    if not os.path.exists(full_path_astro):
-        with open(full_path_astro, "w") as f:
-            f.write("{}")  # empty json
-        print(f"initialized custom tracking file : {full_path_astro}")
+    for f in graphs:
+        full_path_astro = os.path.join(folder, f)
+
+        if not os.path.exists(full_path_astro):
+            with open(full_path_astro, "w") as f:
+                f.write("{}")  # empty json
+            print(f"initialized custom tracking file : {full_path_astro}")
 
 
 # saving codebase to files_metadata.json

@@ -149,3 +149,155 @@ Outputs -
 ## Current Status
 
 This architecture represents the intended design and may evolve as research and implementation progress.
+
+
+### Graph Engine Architecture
+
+
+## Layer 1 — File Dependency Graph
+
+### Purpose
+
+Represents relationships between files/modules in the codebase.
+
+### Nodes
+
+* Files
+* Modules
+
+### Edges
+
+* `IMPORTS`
+* `DEPENDS_ON`
+
+### Example
+
+```
+auth_service.py ──imports──► manager.py
+```
+
+### Responsibilities
+
+* Dependency tracking
+* Impact analysis at file level
+* Incremental graph updates
+* Circular dependency detection
+* Project structure visualization
+
+### Questions Answered
+
+* Which files depend on this file?
+* What files will be affected if this file changes?
+* Which files import this module?
+* Are there circular dependencies?
+
+### Value
+
+Acts as a coarse-grained filtering layer, reducing the search space before deeper semantic analysis.
+
+---
+
+## Layer 2 — Symbol Dependency Graph
+
+### Purpose
+
+Represents relationships between code symbols inside files.
+
+### Nodes
+
+* Functions
+* Classes
+* Methods
+* Global variables
+* Constants
+
+### Edges
+
+* `CALLS`
+* `INHERITS`
+* `USES`
+* `RETURNS`
+* `ACCESSES`
+* `DEFINES`
+
+### Example
+
+```
+verify_token ──calls──► find_workspace_root
+```
+
+### Responsibilities
+
+* Symbol usage tracking
+* Call graph generation
+* API breakage analysis
+* Dead code detection
+* Cross-reference generation
+
+### Questions Answered
+
+* Who calls this function?
+* Where is this class used?
+* What breaks if this API changes?
+* Which functions depend on this symbol?
+
+### Value
+
+Provides semantic understanding of how code components interact.
+
+---
+
+## Layer 3 — Unified Semantic Graph
+
+### Purpose
+
+Combines file-level and symbol-level relationships into a single traversable graph.
+
+### Nodes
+
+* Files
+* Modules
+* Functions
+* Classes
+* Methods
+* Variables
+
+### Edges
+
+* All Layer 1 edges
+* All Layer 2 edges
+* Cross-layer ownership edges
+
+### Example
+
+```
+auth_service.py
+     │
+     ▼
+verify_token
+     │
+     ▼
+find_workspace_root
+     │
+     ▼
+manager.py
+```
+
+### Responsibilities
+
+* End-to-end impact analysis
+* Semantic code navigation
+* Dependency tracing
+* Architectural reasoning
+* Intelligent code understanding
+
+### Questions Answered
+
+* If this function changes, what files are affected?
+* Why does this file depend on another file?
+* What is the complete dependency chain?
+* What is the shortest path between two symbols?
+
+### Value
+
+Transforms Astro from a dependency tracker into a semantic code intelligence engine capable of reasoning across the entire codebase.
