@@ -155,7 +155,3 @@ class SymbolDependencyEngine:
         print(f"Indexed {len(self.graph['nodes'])} symbol nodes.")
         print(f"Mapped {len(self.graph['edges'])} structural symbol relationships.")
         print(f"Symbol Dependency Graph saved to: {self.output_path}")
-
-if __name__ == "__main__":
-    x = SymbolDependencyEngine(r"C:\Users\USER\Desktop\newproject\Project-Astro")
-    x.run()
